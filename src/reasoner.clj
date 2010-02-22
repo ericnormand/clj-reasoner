@@ -86,15 +86,15 @@ is nil, no restriction is applied."
 
 (def test-graph
      (build-graph [
-		   {:s "Eric" :r "type" :o "Person"}
+		   {:s "George" :r "type" :o "Person"}
 		   {:s "John" :r "type" :o "Person"}
-		   {:s "Virginia" :r "type" :o "Person"}
-		   {:s "Eric" :r "hasGirlfriend" :o "Virginia"}
+		   {:s "Susie" :r "type" :o "Person"}
+		   {:s "George" :r "hasGirlfriend" :o "Susie"}
 		   {:s "Banana" :r "type" :o "Fruit"}
-		   {:s "Eric" :r "likes" :o "Banana"}
-		   {:s "Virginia" :r "likes" :o "Apple"}
-		   {:s "John" :r "hasGirlfriend" :o "Susan"}
-		   {:s "Susan" :r "type" :o "Person"}
+		   {:s "George" :r "likes" :o "Banana"}
+		   {:s "Susie" :r "likes" :o "Apple"}
+		   {:s "John" :r "hasGirlfriend" :o "Linda"}
+		   {:s "Linda" :r "type" :o "Person"}
 		   {:s "Apple" :r "type" :o "Fruit"}]))
 
 (def t1 (query test-graph [{:s '?p :r "type" :o "Person"}]))

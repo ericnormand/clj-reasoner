@@ -1,6 +1,13 @@
 # clj-reasoner
 
-FIXME: write description
+A simple graph reasoner writtern in Clojure.
+
+Nodes in the graph are strings.
+Edges are labeled with strings.
+
+A query is a graph pattern.  When applied to a graph, it returns the subgraphs that matches the pattern.
+
+Warning: This is something I did in a weekend.  It needs to be cleaned up.
 
 ## Usage
 

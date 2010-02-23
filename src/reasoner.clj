@@ -157,3 +157,37 @@ is nil, no restriction is applied."
     (if (= g g-old)
       (recur g (infer-all graph rules))
       g)))
+
+;; example
+
+;; a graph of explicit friendship relations
+(def friends-graph 
+     (build-graph [{:s "Andrew" :r "hasFriend" :o "John"}
+		   {:s "Chris" :r "hasFriend" :o "Andrew"}
+		   {:s "Jane" :r "hasFriend" :o "Linda"}
+		   {:s "Jane" :r "hasFriend" :o "Chris"}]))
+
+(def jane-s-friends
+     (query friends-graph [{:s "Jane" :r "hasFriend" :o '?f}]))
+;; => #{{:bindings {?f "Linda"}, :graph {:edges #{{:s "Jane", :r "hasFriend", :o "Linda"}}}} {:bindings {?f "Chris"}, :graph {:edges #{{:s "Jane", :r "hasFriend", :o "Chris"}}}}}
+;; two solutions Linda and Chris
+
+;; some rules
+
+;; friendship is reciprocal
+(def friend-recip
+     [[{:s '?p :r "hasFriend" :o '?f}] 
+      [{:s '?f :r "hasFriend" :o '?p}]])
+
+;; friendship is transitive
+(def friend-trans
+     [[{:s '?p :r "hasFriend" :o '?q}
+       {:s '?q :r "hasFriend" :o '?r}]
+      [{:s '?p :r "hasFriend" :o '?r}]])
+
+(def all-friends-graph (infer-all-closure friends-graph [friend-recip friend-trans]))
+
+(def jane-s-friends-all
+     (query all-friends-graph [{:s "Jane" :r "hasFriend" :o '?f}]))
+;; => #{{:bindings {?f "Linda"}, :graph {:edges #{{:s "Jane", :r "hasFriend", :o "Linda"}}}} {:bindings {?f "Jane"}, :graph {:edges #{{:r "hasFriend", :o "Jane", :s "Jane"}}}} {:bindings {?f "Andrew"}, :graph {:edges #{{:r "hasFriend", :o "Andrew", :s "Jane"}}}} {:bindings {?f "Chris"}, :graph {:edges #{{:s "Jane", :r "hasFriend", :o "Chris"}}}} {:bindings {?f "John"}, :graph {:edges #{{:r "hasFriend", :o "John", :s "Jane"}}}}}
+;; 5 friends

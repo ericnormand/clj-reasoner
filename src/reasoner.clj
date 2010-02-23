@@ -115,3 +115,45 @@ is nil, no restriction is applied."
 			   {:s '?gf :r "likes" :o '?fruit}
 			   
 			   {:s '?fruit :r "type" :o "Fruit"}]))
+
+(defn rebind
+  [stmnt bindings]
+  (let [vars (vars stmnt)
+	non-vars (non-vars stmnt)]
+    (rehash (concat non-vars (for [[idx var] vars] [idx (bindings var)])))))
+
+(defn rebind-all
+  [stmnts bindings]
+  (map #(rebind % bindings) stmnts))
+
+(defn infer
+  [graph ante conce]
+  (loop [results (query graph ante) g graph]
+    (if (seq results)
+	 (let [r (first results)
+	       c (rebind-all conce (:bindings r))]
+	   (recur (rest results) (merge-graphs g {:edges (set c)})))
+	 g)))
+
+(defn infer-closure
+  [graph ante conce]
+  (loop [g-old graph g (infer graph ante conce)]
+    (if (= g g-old)
+      g
+      (recur g (infer g ante conce)))))
+
+;; a rule is [ante conse]
+(defn infer-all
+  [graph rules]
+  (loop [rules rules g graph]
+    (if (seq rules)
+      (recur (rest rules) (apply infer-closure g (first rules)))
+      g)))
+
+;; infer the transitive closure of the graph and rules
+(defn infer-all-closure
+  [graph rules]
+  (loop [g-old graph g (infer-all graph rules)]
+    (if (= g g-old)
+      (recur g (infer-all graph rules))
+      g)))

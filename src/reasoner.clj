@@ -71,9 +71,13 @@ is nil, no restriction is applied."
   [g1 g2]
   (reduce add-edge g1 (:edges g2)))
 
+(defn all-true
+  [es]
+  (every? identity es))
+
 (defn combine-sols
   [s1 s2]
-  (if (every? identity (for [[k v] (:bindings s1) :when ((:bindings s2) k)]
+  (if (all-true (for [[k v] (:bindings s1) :when ((:bindings s2) k)]
 			 (= v ((:bindings s2) k))))
     {:bindings (merge (:bindings s1) (:bindings s2))
      :graph (merge-graphs (:graph s1)
@@ -174,8 +178,8 @@ is nil, no restriction is applied."
 
 ;; some rules
 
-;; friendship is reciprocal
-(def friend-recip
+;; friendship is symmetrical
+(def friend-symm
      [[{:s '?p :r "hasFriend" :o '?f}] 
       [{:s '?f :r "hasFriend" :o '?p}]])
 
@@ -185,9 +189,17 @@ is nil, no restriction is applied."
        {:s '?q :r "hasFriend" :o '?r}]
       [{:s '?p :r "hasFriend" :o '?r}]])
 
-(def all-friends-graph (infer-all-closure friends-graph [friend-recip friend-trans]))
+(def all-friends-graph (infer-all-closure friends-graph [friend-symm friend-trans]))
 
 (def jane-s-friends-all
      (query all-friends-graph [{:s "Jane" :r "hasFriend" :o '?f}]))
 ;; => #{{:bindings {?f "Linda"}, :graph {:edges #{{:s "Jane", :r "hasFriend", :o "Linda"}}}} {:bindings {?f "Jane"}, :graph {:edges #{{:r "hasFriend", :o "Jane", :s "Jane"}}}} {:bindings {?f "Andrew"}, :graph {:edges #{{:r "hasFriend", :o "Andrew", :s "Jane"}}}} {:bindings {?f "Chris"}, :graph {:edges #{{:s "Jane", :r "hasFriend", :o "Chris"}}}} {:bindings {?f "John"}, :graph {:edges #{{:r "hasFriend", :o "John", :s "Jane"}}}}}
 ;; 5 friends
+
+(defn print-dot
+  [graph]
+  (let [edges (:edges graph)]
+    (dorun (for [{:keys [s r o]} edges]
+	     (do
+	       (println (str "edge [fontsize=\"9\" label=\"" r "\"]"))
+	       (println s "->" o))))))

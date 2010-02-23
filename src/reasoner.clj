@@ -114,11 +114,41 @@ is nil, no restriction is applied."
   [g sols stmt]
   (set (filter #(not (nil? %)) (cross combine-sols sols (gensols g stmt)))))
 
-(defn query
+(defn query-old
  [graph stmts]
  (reduce #(q graph %1 %2)
 	 #{{:graph (new-graph) :bindings {}}}
 	 stmts))
+
+(defn edge-stmt?
+  [stmt]
+  (map? stmt))
+
+(defn expr-stmt?
+  [stmt]
+  (not (edge-stmt? stmt)))
+
+(defn make-expr
+  [vars & body]
+  (eval `(fn [~@vars] ~@body)))
+
+(defn sol-valid
+  [sol expr]
+  (let [vars (map first (:bindings sol))
+	vals (map second (:bindings sol))
+	f (apply make-expr vars expr)]
+    (apply f vals)))
+
+(defn sol-valid-all
+  [sol exprs]
+  (all-true (map #(sol-valid sol %) exprs)))
+
+(defn query
+  [graph stmts]
+  (let [edge-stmts (filter edge-stmt? stmts)
+	expr-stmts (filter expr-stmt? stmts)
+	sols (query-old graph edge-stmts)]
+    (set (filter #(sol-valid-all % expr-stmts) sols))))
 
 
 (def test-graph
@@ -208,7 +238,8 @@ is nil, no restriction is applied."
 ;; friendship is transitive
 (def friend-trans
      [[{:s '?p :r "hasFriend" :o '?q}
-       {:s '?q :r "hasFriend" :o '?r}]
+       {:s '?q :r "hasFriend" :o '?r}
+       '(not (= ?p ?r))]
       [{:s '?p :r "hasFriend" :o '?r}]])
 
 (def all-friends-graph (infer-all-closure friends-graph [friend-symm friend-trans]))

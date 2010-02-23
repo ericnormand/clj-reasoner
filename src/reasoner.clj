@@ -11,14 +11,36 @@
        n (conj o v)]
    (assoc i k n)))
 
+(defn make-explicit
+  [edge]
+  (with-meta edge {:source :explicit}))
+
+(defn make-inferred
+  [edge]
+  (with-meta edge {:source :inferred}))
+
+(defn tag-explicit
+  "Tag an edge as explicit only if it is not tagged."
+  [edge]
+  (with-meta edge {:source (:source (meta edge) :explicit)}))
+
+(defn inferred?
+  [edge]
+  (= :inferred (:source (meta edge))))
+
+(defn explicit?
+  [edge]
+  (let [source (:source (meta edge))]
+   (or (nil? source)
+       (= :explicit source))))
+
 (defn add-edge
   [g stmt]
   {:edges (conj (:edges g) stmt)})
 
-
 (defn build-graph
   [stmts]
-  (reduce add-edge (new-graph) stmts))
+  (reduce add-edge (new-graph) (map tag-explicit stmts)))
 
 (defn query-single
   "Apply a restriction to the graph.
@@ -135,7 +157,7 @@ is nil, no restriction is applied."
   (loop [results (query graph ante) g graph]
     (if (seq results)
 	 (let [r (first results)
-	       c (rebind-all conce (:bindings r))]
+	       c (map make-inferred (rebind-all conce (:bindings r)))]
 	   (recur (rest results) (merge-graphs g {:edges (set c)})))
 	 g)))
 
@@ -199,7 +221,10 @@ is nil, no restriction is applied."
 (defn print-dot
   [graph]
   (let [edges (:edges graph)]
-    (dorun (for [{:keys [s r o]} edges]
-	     (do
-	       (println (str "edge [fontsize=\"9\" label=\"" r "\"]"))
+    (dorun (for [e edges]
+	     (let [{:keys [s r o]} e
+		   color (if (explicit? e)
+			   "black"
+			   "red")]
+	       (println (str "edge [fontsize=\"9\" label=\"" r "\" color=\"" color "\"]"))
 	       (println s "->" o))))))

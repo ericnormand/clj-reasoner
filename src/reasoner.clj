@@ -307,3 +307,10 @@ Returns nil if they are incompatible."
 			   "red")]
 	       (println (str "edge [fontsize=\"9\" label=\"" r "\" color=\"" color "\"]"))
 	       (println s "->" o))))))
+
+(def soc-graph (build-graph [{:s "Socrates" :r "type" :o "Man"}]))
+
+(def mortal-rule [[{:s '?p :r "type" :o "Man"}]
+		  [{:s '?p :r "isMortal" :o "true"}]])
+
+(def soc-mortal (infer-all-closure soc-graph [mortal-rule]))

@@ -313,4 +313,6 @@ Returns nil if they are incompatible."
 (def mortal-rule [[{:s '?p :r "type" :o "Man"}]
 		  [{:s '?p :r "isMortal" :o "true"}]])
 
-(def soc-mortal (infer-all-closure soc-graph [mortal-rule]))
+(def soc-concl (infer-all-closure soc-graph [mortal-rule]))
+
+(def is-soc-mortal (query soc-concl [{:s "Socrates" :r "isMortal" :o "true"}]))

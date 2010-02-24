@@ -2,20 +2,17 @@
  (:use clojure.set))
 
 (defn new-graph
- []
- {:edges #{}})
-
-(defn add-to-index
- [i k v]
- (let [o (i k #{})
-       n (conj o v)]
-   (assoc i k n)))
+  "Create a new empty graph."
+  []
+  {:edges #{}})
 
 (defn make-explicit
+  "Force an edge to be tagged as explicit (in metadata)."
   [edge]
   (with-meta edge {:source :explicit}))
 
 (defn make-inferred
+  "Force an edge to be tagged as inferred (in metadata)."
   [edge]
   (with-meta edge {:source :inferred}))
 
@@ -25,69 +22,121 @@
   (with-meta edge {:source (:source (meta edge) :explicit)}))
 
 (defn inferred?
+  "True if this edge is tagged inferred."
   [edge]
   (= :inferred (:source (meta edge))))
 
 (defn explicit?
+  "True if this edge is tagged explicit or untagged."
   [edge]
   (let [source (:source (meta edge))]
    (or (nil? source)
        (= :explicit source))))
 
 (defn add-edge
-  [g stmt]
-  {:edges (conj (:edges g) stmt)})
+  "Add an edge to a graph."
+  [g edge]
+  {:edges (conj (:edges g) edge)})
 
 (defn build-graph
-  [stmts]
-  (reduce add-edge (new-graph) (map tag-explicit stmts)))
+  "Create a new graph with the given edges."
+  [edges]
+  (reduce add-edge (new-graph) (map tag-explicit edges)))
 
-(defn query-single
-  "Apply a restriction to the graph.
-All edge elements i must be = to v.  If v
-is nil, no restriction is applied."
-  [g [i v]]
-  (if (nil? v)
-    g
-    (build-graph (filter #(= (% i) v) (:edges g)))))
+(defn new-solution
+  "Create a new, empty solution.  A solution has a graph and bindings."
+  []
+  {:bindings {} :graph (new-graph)})
+
+(defn add-binding
+  "Add a binding to a solution."
+  [sol var val]
+  (assoc sol :bindings (assoc (:bindings sol) var val)))
+
+(defn get-binding
+  "Get the binding of a solution"
+  [sol var]
+  ((:bindings sol) var))
+
+(defn binding-match
+  ""
+  [sol var val]
+  (let [b (get-binding sol var)]
+    (or (nil? b)
+	(= b val))))
+
+(defn query-edges-single
+  "Given a single restriction ([idx val]), returns all edges from graph that conform to that restriction."
+  [edges [idx val]]
+  (filter #(= (% idx) val) edges))
 
 (defn query-edges
-  [graph & args]
-  (reduce #(query-single %1 %2) graph args))
+  "Given multiple restrictions, return all edges from graph that conform to all restrictions."
+ [graph & args]
+ (reduce query-edges-single (:edges graph) args))
 
 (defn variable?
+  "Is this a variable?  Currently, variables are symbols that start with \\?."
   [x]
   (and (symbol? x)
        (.startsWith (str x) "?")))
 
 (defn vars
+  "Get all vars from a query statement."
   [stmt]
   (for [[idx var] stmt :when (variable? var)] [idx var]))
 
 (defn non-vars
+  "Get all non-vars from a query statement."
   [stmt]
   (for [[idx val] stmt :when (not (variable? val))] [idx val]))
 
 (defn rehash
+  "Build a hash-map after it has been seq'd"
   [s]
   (apply hash-map (apply concat s)))
 
+(defn all-binding-matches
+  "Builds a new solution with edge, bindings, and vars added to bindings if they are compatible.
+Returns nil if they are incompatible."
+  [edge bindings vars]
+  (if (nil? (seq vars))
+    {:graph (build-graph [edge])
+     :bindings bindings}
+    (let [fvar (first vars)
+	  idx (nth fvar 0)
+	  var (nth fvar 1)
+	  val (edge idx)]
+      (cond
+	(not (bindings var))
+	(recur edge (assoc bindings var val) (rest vars))
 
+	(= (bindings var) val)
+	(recur edge bindings (rest vars))
+	
+	:otherwise 
+	nil))))
+
+(defn filter-binding-matches
+  "Build a solution for each edge given the vars ([idx var]*)."
+  [edges vars]
+  (for [e edges
+	:let [sol (all-binding-matches e {} vars)]
+	:when sol]
+    sol))
 
 ;;; a solution is a set of bindings and a graph that matches that binding
 ;;; a statement is an edge with optional parts and variable parts
 (defn gensols
+  "Generate solutions of the query statement applied to graph."
  [graph stmt]
  (let [	;; vars get bound to values
        vars (vars stmt)
        ;; non-vars are values that must match in the graph
        non-vars (non-vars stmt)
        ;; 
-       edges (apply query-edges graph non-vars)]
-   (set (for [edge (:edges edges)]
-          {:graph (build-graph [edge])
-           :bindings (rehash (for [[idx var] vars]
-			       [var (edge idx)]))}))))
+       restricted-graph (apply query-edges graph non-vars)]
+   (filter-binding-matches restricted-graph vars)))
 
 (defn merge-graphs
   [g1 g2]
@@ -136,7 +185,7 @@ is nil, no restriction is applied."
   [sol expr]
   (let [vars (map first (:bindings sol))
 	vals (map second (:bindings sol))
-	f (apply make-expr vars expr)]
+	f (make-expr vars  expr)]
     (apply f vals)))
 
 (defn sol-valid-all
@@ -149,7 +198,6 @@ is nil, no restriction is applied."
 	expr-stmts (filter expr-stmt? stmts)
 	sols (query-old graph edge-stmts)]
     (set (filter #(sol-valid-all % expr-stmts) sols))))
-
 
 (def test-graph
      (build-graph [
